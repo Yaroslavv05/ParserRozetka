@@ -14,4 +14,4 @@ class LinksAdmin(admin.ModelAdmin):
 
 @admin.register(Info)
 class InfoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'product_name', 'price', 'reviews', 'characteristic1', 'characteristic2', 'characteristic3', 'characteristic4', 'characteristic5')
+    list_display = ('id', 'product_name', 'price', 'reviews', 'color', 'material', 'brand', 'series', 'guarantee')

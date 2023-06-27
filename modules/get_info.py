@@ -14,10 +14,8 @@ def uri(link):
 
 
 def scrape_data():
-    all_links = Links.objects.values_list('link', flat=True)
-    characteristics = []
-
-    for link in all_links:
+    characteristics_link = None
+    for link in Links.objects.values_list('link', flat=True):
         try:
             response = uri(link)
             soup = BS(response.content, 'html.parser')
@@ -26,38 +24,47 @@ def scrape_data():
             amount_feedback = soup.find('ul', class_='tabs__list').find_all('li', class_='tabs__item ng-star-inserted')[2].text.replace('Відгуки', '')
             characteristics_link = soup.find('ul', class_='tabs__list').find_all('li', class_='tabs__item ng-star-inserted')[1].findNext('a')['href']
         except:
-            continue
+            price = None
+            pass
 
-        if characteristics_link:
+        if characteristics_link is not None:
             try:
                 response_for_characteristics = uri(characteristics_link)
                 soup_for_characteristics = BS(response_for_characteristics.content, 'html.parser')
-                current_characteristics = []
-                characteristics_items = soup_for_characteristics.find('dl', class_='characteristics-full__list').find_all('div', class_='characteristics-full__item ng-star-inserted')[:5]
+                characteristics_items = soup_for_characteristics.find_all('div', class_='characteristics-full__item ng-star-inserted')
+                color = 'None'
+                material = 'None'
+                brand = 'None'
+                series = 'None'
+                guarantee = 'None'
                 for item in characteristics_items:
-                    try:
-                        label = item.findNext('span').text
-                        value = item.findNext('a', class_='ng-star-inserted').text
-                        characteristic = f'{label} - {value}'
-                    except:
-                        continue
-                    current_characteristics.append(characteristic)
-                characteristics.append(current_characteristics)
+                    label = item.find('dt', class_='characteristics-full__label').find('span').text
+                    value = item.find('dd', class_='characteristics-full__value').text
+                    if label == 'Сумісний бренд':
+                        brand = value
+                    elif label == 'Гарантія':
+                        guarantee = value
+                    elif label == 'Колір':
+                        color = value
+                    elif label == 'Матеріал':
+                        material = value
+                    elif label == 'Серія':
+                        series = value
 
                 bd_for_info = Info(
                     product_name=handler,
                     price=price,
                     reviews=amount_feedback,
-                    characteristic1=current_characteristics[0] if len(current_characteristics) > 0 else None,
-                    characteristic2=current_characteristics[1] if len(current_characteristics) > 1 else None,
-                    characteristic3=current_characteristics[2] if len(current_characteristics) > 2 else None,
-                    characteristic4=current_characteristics[3] if len(current_characteristics) > 3 else None,
-                    characteristic5=current_characteristics[4] if len(current_characteristics) > 4 else None
+                    color=color,
+                    material=material,
+                    brand=brand,
+                    series=series,
+                    guarantee=guarantee
                 )
                 bd_for_info.save()
                 time.sleep(0.03)
-            except:
-                continue
+            except Exception as ex:
+                print(ex)
 
     print("Парсинг окончен!")
 

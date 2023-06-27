@@ -18,10 +18,7 @@ def fetch_links(url):
     return links
 
 
-all_keys = Keywords.objects.values_list('name', flat=True)
-sort_keys = [key.replace(' ', '+') for key in all_keys]
-
-for keyword in sort_keys:
+for keyword in [key.replace(' ', '+') for key in Keywords.objects.values_list('name', flat=True)]:
     try:
         url = f'https://search.rozetka.com.ua/search/api/v6/?front-type=xl&country=UA&lang=ru&page=1&text={keyword}&seller=rozetka'
         response = requests.get(url)
