@@ -42,7 +42,6 @@ def scrape_data():
                     except:
                         continue
                     current_characteristics.append(characteristic)
-                    print(characteristic)
                 characteristics.append(current_characteristics)
 
                 bd_for_info = Info(
