@@ -7,52 +7,61 @@ load()
 
 from parser_app.models import Links, Info
 
-all_link = Links.objects.values('link')
-sort_link = []
-for i in range(len(all_link)):
-    sort_link.append((all_link[i].get('link')).replace(' ', '+'))
-
 
 def uri(link):
-    url = link
-    response = requests.get(url)
+    response = requests.get(link)
     return response
 
 
-characteristics_link = None
-for i in range(len(sort_link)):
-    try:
-        soup = BS(uri(link=sort_link[i]).content, 'html.parser')
-        handler = soup.find('div', attrs={'class': 'product__heading'}).find('h1', attrs={'class': 'product__title'}).text
-        price = int(soup.find('div', attrs={'class': 'product-price__wrap ng-star-inserted'}).find('p', attrs={'class': 'product-price__big'}).text.replace('₴', ''))
-        amount_feedback = soup.find('ul', attrs={'class': 'tabs__list'}).find_all('li', attrs={'tabs__item ng-star-inserted'})[2].text.replace('Відгуки', '')
-        characteristics_link = soup.find('ul', attrs={'class': 'tabs__list'}).find_all('li', attrs={'tabs__item ng-star-inserted'})[1].findNext('a')['href']
-    except:
-        pass
+def scrape_data():
+    all_links = Links.objects.values_list('link', flat=True)
+    characteristics = []
 
-    if characteristics_link is not None:
-        soup_for_characteristics = BS(uri(link=characteristics_link).content, 'html.parser')
-        for j in range(5):
+    for link in all_links:
+        try:
+            response = uri(link)
+            soup = BS(response.content, 'html.parser')
+            handler = soup.find('div', class_='product__heading').find('h1', class_='product__title').text
+            price = int(soup.find('div', class_='product-price__wrap ng-star-inserted').find('p', class_='product-price__big').text.replace('₴', ''))
+            amount_feedback = soup.find('ul', class_='tabs__list').find_all('li', class_='tabs__item ng-star-inserted')[2].text.replace('Відгуки', '')
+            characteristics_link = soup.find('ul', class_='tabs__list').find_all('li', class_='tabs__item ng-star-inserted')[1].findNext('a')['href']
+        except:
+            continue
+
+        if characteristics_link:
             try:
-                get_characteristics = soup_for_characteristics.find('dl', attrs={'class': 'characteristics-full__list'}).find_all('div', attrs={'class': 'characteristics-full__item ng-star-inserted'})[j]
-                label = get_characteristics.findNext('span').text
-                value = get_characteristics.findNext('a', attrs={'class': 'ng-star-inserted'}).text
-                characteristic = f'{label} - {value}'
+                response_for_characteristics = uri(characteristics_link)
+                soup_for_characteristics = BS(response_for_characteristics.content, 'html.parser')
+                current_characteristics = []
+                characteristics_items = soup_for_characteristics.find('dl', class_='characteristics-full__list').find_all('div', class_='characteristics-full__item ng-star-inserted')[:5]
+                for item in characteristics_items:
+                    try:
+                        label = item.findNext('span').text
+                        value = item.findNext('a', class_='ng-star-inserted').text
+                        characteristic = f'{label} - {value}'
+                    except:
+                        continue
+                    current_characteristics.append(characteristic)
+                    print(characteristic)
+                characteristics.append(current_characteristics)
+
+                bd_for_info = Info(
+                    product_name=handler,
+                    price=price,
+                    reviews=amount_feedback,
+                    characteristic1=current_characteristics[0] if len(current_characteristics) > 0 else None,
+                    characteristic2=current_characteristics[1] if len(current_characteristics) > 1 else None,
+                    characteristic3=current_characteristics[2] if len(current_characteristics) > 2 else None,
+                    characteristic4=current_characteristics[3] if len(current_characteristics) > 3 else None,
+                    characteristic5=current_characteristics[4] if len(current_characteristics) > 4 else None
+                )
+                bd_for_info.save()
+                time.sleep(0.03)
             except:
-                try:
-                    get_characteristics = soup_for_characteristics.find_all('section', attrs={'class': 'characteristics-full__group ng-star-inserted'})[j].findNext('dl', attrs={'class': 'characteristics-full__list'})
-                    label = get_characteristics.findNext('span').text
-                    value = get_characteristics.findNext('a', attrs={'class': 'ng-star-inserted'}).text
-                    characteristic = f'{label} - {value}'
-                except:
-                    pass
-            print(handler)
-            print(price)
-            print(amount_feedback)
-            print(characteristics_link)
-            print(characteristic)
-            bd_for_info = Info(product_name=handler, price=price, reviews=amount_feedback, characteristic1=characteristic,
-                               characteristic2=characteristic, characteristic3=characteristic,
-                               characteristic4=characteristic, characteristic5=characteristic)
-            bd_for_info.save()
-            time.sleep(0.03)
+                continue
+
+    print("Парсинг окончен!")
+
+
+if __name__ == '__main__':
+    scrape_data()
